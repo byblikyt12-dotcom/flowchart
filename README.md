@@ -1,2 +1,9 @@
-# flowchart
-Python code flowchart generator following the Russian GOST 19.701-90 standard. Paste code and get a chart instantly, with if/else, loops, functions, input/output and error handling. Installable PWA for Android and iPhone that runs fully in the browser via Pyodide: no server, works offline. Export charts to SVG or PNG.
+# Блок-схемы по коду Python (PWA)
+
+Папку нужно один раз выложить на GitHub Pages, после этого приложение ставится на телефон.
+
+1. На github.com создайте репозиторий (Public), нажмите «Add file → Upload files» и загрузите ВСЕ файлы из этой папки (без самой папки).
+2. Settings → Pages → Branch: main, папка / (root) → Save.
+3. Через минуту сайт будет по адресу https://ВАШ-ЛОГИН.github.io/ИМЯ-РЕПОЗИТОРИЯ/
+4. Откройте адрес на телефоне и дождитесь загрузки Python (один раз, нужен интернет).
+5. Установка: Android (Chrome) — меню ⋮ → «Установить приложение»; iPhone (Safari) — «Поделиться» → «На экран Домой».

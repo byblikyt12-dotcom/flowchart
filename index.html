@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b4dff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Блок-схемы">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>Блок-схемы по коду Python</title>
+<style>
+  :root { --ink:#16181f; --acc:#2b4dff; --soft:#eef1fb; --fs:16px; --lh:24px; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body { margin:0; display:flex; flex-direction:column; height:100dvh; font-family:system-ui,sans-serif; color:var(--ink); background:#fff;
+         padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+  header { padding:10px 16px; background:var(--acc); color:#fff; }
+  h1 { margin:0; font-size:18px; font-weight:650; }
+  header small { opacity:.8; font-size:12px; }
+  main { flex:1; min-height:0; display:flex; }
+  .pane { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; }
+  .pane + .pane { border-left:2px solid var(--ink); }
+  .bar { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f6f7fc; border-bottom:1px solid #d5d9e6; font-size:14px; }
+  .bar b { flex:1; font-weight:600; }
+  button { font:600 14px system-ui,sans-serif; min-height:40px; min-width:44px; padding:0 12px; border:1px solid var(--ink); border-radius:8px; background:#fff; color:var(--ink); }
+  button:active { background:var(--soft); }
+  .ed { flex:1; display:flex; min-height:0; }
+  #gut { margin:0; width:46px; padding:12px 6px; text-align:right; overflow:hidden; color:#868ca0; background:#f1f2f8; border-right:1px solid #dfe2ee; font:var(--fs)/var(--lh) ui-monospace,Menlo,Consolas,monospace; }
+  #code { flex:1; border:0; outline:0; resize:none; padding:12px; white-space:pre; overflow:auto; tab-size:4; background:#fcfcff; color:var(--ink);
+          font:var(--fs)/var(--lh) ui-monospace,Menlo,Consolas,monospace; }
+  #err { display:none; padding:8px 12px; color:#b3261e; background:#fdeceb; border-top:1px solid #f1b8b4; font-size:14px; }
+  #out { flex:1; overflow:auto; padding:14px; background:#eef0f5; touch-action:pan-x pan-y; -webkit-overflow-scrolling:touch; }
+  .chart { margin-bottom:22px; }
+  .chead { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:15px; }
+  .chead b { flex:1; }
+  .sheet { display:inline-block; background:#fff; border:1px solid #c9cddc; line-height:0; }
+  .hint { color:#777; font-size:15px; }
+  nav { display:none; border-top:2px solid var(--ink); padding-bottom:env(safe-area-inset-bottom); background:#fff; }
+  nav button { flex:1; min-height:52px; border:0; border-radius:0; font-size:16px; }
+  nav button.on { background:var(--acc); color:#fff; }
+  #boot { position:fixed; inset:0; z-index:9; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; background:#fff; text-align:center; padding:24px; }
+  #boot.off { display:none; }
+  @media (max-width:899px) {
+    nav { display:flex; }
+    body[data-tab="code"] #paneOut, body[data-tab="out"] #paneCode { display:none; }
+    .pane + .pane { border-left:0; }
+  }
+  @media (min-width:900px) { :root { --fs:13px; --lh:19px; } main { padding-bottom:0; } #pane { display:flex; } #paneCode { max-width:40%; } }
+</style></head>
+<body data-tab="code">
+<header><h1>Блок-схемы по коду Python</h1><small>ГОСТ 19.701-90 · работает без интернета</small></header>
+<main>
+  <section class="pane" id="paneCode">
+    <div class="bar"><b>Код</b><button id="tab" title="Вставить 4 пробела">⇥</button><button id="clr">Очистить</button></div>
+    <div class="ed"><pre id="gut">1</pre><textarea id="code" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off">x=2; y=3.5; a=0.1; b=4
+p=int(input('p='))
+if p==3:
+    v=-x*y
+    print('v=',v)
+else:
+    if p==4:
+        v=a*b/x
+        print('v=',v)
+    else:
+        print('нет решения')</textarea></div>
+    <div id="err"></div>
+  </section>
+  <section class="pane" id="paneOut">
+    <div class="bar"><b>Схема</b><button id="zo">−</button><span id="zl">100%</span><button id="zi">+</button><button id="fit">Вписать</button></div>
+    <div id="out"><span class="hint">Здесь появится схема</span></div>
+  </section>
+</main>
+<nav><button id="t1" class="on">Код</button><button id="t2">Схема</button></nav>
+<div id="boot"><div id="bmsg">Загружаю Python… (при первом запуске нужен интернет)</div></div>
+<script>
+const PY = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+const $ = id => document.getElementById(id);
+const code = $('code'), out = $('out'), err = $('err'), gut = $('gut');
+let charts = [], scale = 1, userZoom = false, pendingFit = false, buildJson = null, timer;
+
+try { const s = localStorage.getItem('fc-code'); if (s !== null) code.value = s; } catch (e) {}
+
+function numbers() { gut.textContent = Array.from({length: code.value.split('\n').length}, (_, i) => i + 1).join('\n'); }
+code.addEventListener('scroll', () => gut.scrollTop = code.scrollTop);
+code.addEventListener('input', () => {
+  numbers(); clearTimeout(timer); timer = setTimeout(build, 400);
+  try { localStorage.setItem('fc-code', code.value); } catch (e) {}
+});
+$('tab').onclick = () => { code.setRangeText('    ', code.selectionStart, code.selectionEnd, 'end'); code.dispatchEvent(new Event('input')); code.focus(); };
+$('clr').onclick = () => { code.value = ''; code.dispatchEvent(new Event('input')); code.focus(); };
+
+function tab(t) {
+  document.body.dataset.tab = t;
+  $('t1').classList.toggle('on', t === 'code'); $('t2').classList.toggle('on', t === 'out');
+  if (t === 'out' && pendingFit) fit();
+}
+$('t1').onclick = () => tab('code'); $('t2').onclick = () => tab('out');
+
+function build() {
+  if (!buildJson) return;
+  const d = JSON.parse(buildJson(code.value));
+  if (d.error) { err.textContent = d.error; err.style.display = 'block'; return; }
+  err.style.display = 'none'; charts = d.charts; render();
+}
+function render() {
+  out.innerHTML = '';
+  if (!charts.length) { out.innerHTML = '<span class="hint">Код пустой</span>'; return; }
+  charts.forEach((c, i) => {
+    const box = document.createElement('section'); box.className = 'chart';
+    box.innerHTML = '<div class="chead"><b></b><button data-f="svg">SVG</button><button data-f="png">PNG</button></div><div class="sheet"></div>';
+    box.querySelector('b').textContent = c.title;
+    box.querySelector('.sheet').innerHTML = c.svg;
+    box.querySelectorAll('button').forEach(b => b.onclick = () => b.dataset.f === 'svg' ? saveSvg(i) : savePng(i));
+    out.appendChild(box);
+  });
+  if (!userZoom) fit(); else apply();
+}
+function apply() {
+  $('zl').textContent = Math.round(scale * 100) + '%';
+  out.querySelectorAll('.sheet svg').forEach((v, i) => { v.setAttribute('width', charts[i].w * scale); v.setAttribute('height', charts[i].h * scale); });
+}
+function setScale(s) { scale = Math.min(3, Math.max(.15, s)); userZoom = true; apply(); }
+function fit() {
+  if (!charts.length) return;
+  if (!out.clientWidth) { pendingFit = true; return; }
+  pendingFit = false; userZoom = false;
+  scale = Math.min(1, (out.clientWidth - 30) / Math.max(...charts.map(c => c.w))); apply();
+}
+$('zi').onclick = () => setScale(scale * 1.25); $('zo').onclick = () => setScale(scale / 1.25); $('fit').onclick = fit;
+
+// масштабирование двумя пальцами
+let pd = 0, ps = 1;
+const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+out.addEventListener('touchstart', e => { if (e.touches.length === 2) { pd = dist(e.touches); ps = scale; } }, {passive: true});
+out.addEventListener('touchmove', e => { if (e.touches.length === 2 && pd) { e.preventDefault(); setScale(ps * dist(e.touches) / pd); } }, {passive: false});
+out.addEventListener('touchend', e => { if (e.touches.length < 2) pd = 0; });
+
+// сохранение: на телефоне через меню «Поделиться», на компьютере скачиванием
+async function save(blob, name) {
+  const f = new File([blob], name, {type: blob.type});
+  if (matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({files: [f]})) {
+    try { await navigator.share({files: [f], title: name}); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const fname = c => c.title.replace(/\s+/g, '_');
+const saveSvg = i => save(new Blob([charts[i].svg], {type: 'image/svg+xml'}), fname(charts[i]) + '.svg');
+function savePng(i) {
+  const c = charts[i], img = new Image();
+  img.onload = () => {
+    const k = Math.min(2, Math.sqrt(12e6 / (c.w * c.h))), cv = document.createElement('canvas');
+    cv.width = c.w * k; cv.height = c.h * k;
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.drawImage(img, 0, 0, cv.width, cv.height);
+    cv.toBlob(b => save(b, fname(c) + '.png'));
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(c.svg);
+}
+
+// запуск Python в браузере
+function loadScript(src) {
+  return new Promise((ok, fail) => {
+    const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+  });
+}
+async function boot() {
+  try {
+    await loadScript(PY + 'pyodide.js');
+    const py = await loadPyodide({indexURL: PY});
+    py.runPython(await (await fetch('flowchart_core.py')).text());
+    buildJson = py.globals.get('build_json');
+    $('boot').classList.add('off'); build();
+  } catch (e) {
+    $('bmsg').innerHTML = 'Не удалось загрузить Python. Проверьте интернет (нужен только при первом запуске).<br><br><button onclick="location.reload()">Повторить</button>';
+  }
+}
+numbers(); boot();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body></html>
